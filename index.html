@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Métodos Iterativos: Jacobi y Gauss-Seidel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f3ead9;
+    --surface:#ebdec4;
+    --surface-2:#e2d1af;
+    --border:#cdb98f;
+    --text:#4a3623;
+    --text-dim:#8a6f4f;
+    --jacobi:#3d6a8a;
+    --jacobi-dim:#93b3c4;
+    --gs:#a35d1f;
+    --gs-dim:#d1a878;
+    --intro:#4f6b4a;
+    --intro-dim:#a3bb9b;
+    --calc:#8a3a52;
+    --calc-dim:#c9a0b0;
+    --result:#8c5a12;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    line-height:1.55;
+  }
+  h1,h2,h3,.display{
+    font-family:'Space Grotesk', sans-serif;
+    letter-spacing:-0.01em;
+  }
+  code, .mono, .formula, .matrix{
+    font-family:'IBM Plex Mono', monospace;
+  }
+  a{color:inherit;}
+  .app{max-width:900px;margin:0 auto;padding:48px 24px 96px;}
+  section.view{display:none;}
+  section.view.active{display:block;animation:fade .35s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+  /* ---------- Carátula ---------- */
+  .caratula{
+    min-height:calc(100vh - 96px);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:40px 0;
+  }
+  .bracket-frame{
+    position:relative;
+    padding:8px 56px;
+    margin-bottom:36px;
+  }
+  .bracket-frame::before, .bracket-frame::after{
+    content:'';
+    position:absolute;
+    top:-6px; bottom:-6px;
+    width:22px;
+    border:3px solid var(--text-dim);
+    opacity:.55;
+  }
+  .bracket-frame::before{left:0; border-right:none;}
+  .bracket-frame::after{right:0; border-left:none;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    margin:0 0 6px;
+  }
+  .caratula h1{
+    font-size:clamp(28px, 4.6vw, 44px);
+    font-weight:700;
+    margin:0 0 8px;
+    line-height:1.12;
+  }
+  .caratula .subtitle{
+    color:var(--text-dim);
+    font-size:16px;
+    margin:0;
+  }
+  .meta-block{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color:var(--text-dim);
+    margin:28px 0 40px;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .meta-block .editable{color:var(--result);}
+  .method-picker{
+    display:flex;
+    gap:18px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .method-btn{
+    all:unset;
+    cursor:pointer;
+    position:relative;
+    width:230px;
+    padding:22px 20px;
+    border-radius:var(--radius);
+    background:var(--surface);
+    border:1px solid var(--border);
+    transition:transform .18s ease, border-color .18s ease, background .18s ease;
+    text-align:left;
+  }
+  .method-btn:hover{transform:translateY(-3px);}
+  .method-btn:focus-visible{outline:2px solid var(--text); outline-offset:3px;}
+  .method-btn .tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    display:block;
+    margin-bottom:8px;
+  }
+  .method-btn .name{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:20px;
+    font-weight:600;
+  }
+  .method-btn.jacobi{border-color:var(--jacobi-dim);}
+  .method-btn.jacobi:hover{border-color:var(--jacobi); background:#dfe9ee;}
+  .method-btn.jacobi .tag{color:var(--jacobi);}
+  .method-btn.gs{border-color:var(--gs-dim);}
+  .method-btn.gs:hover{border-color:var(--gs); background:#f0ddba;}
+  .method-btn.gs .tag{color:var(--gs);}
+  .method-btn.intro{border-color:var(--intro-dim);}
+  .method-btn.intro:hover{border-color:var(--intro); background:#dde8d8;}
+  .method-btn.intro .tag{color:var(--intro);}
+  .method-btn.calc{border-color:var(--calc-dim);}
+  .method-btn.calc:hover{border-color:var(--calc); background:#f2dde5;}
+  .method-btn.calc .tag{color:var(--calc);}
+
+  /* ---------- convergence signature (ambient) ---------- */
+  .signature{
+    display:flex;
+    gap:10px;
+    margin:44px 0 0;
+  }
+  .signature .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--text-dim);
+    animation:settle 2.6s ease-in-out infinite;
+  }
+  .signature .dot:nth-child(1){animation-delay:0s;}
+  .signature .dot:nth-child(2){animation-delay:.15s;}
+  .signature .dot:nth-child(3){animation-delay:.3s;}
+  .signature .dot:nth-child(4){animation-delay:.45s;}
+  .signature .dot:nth-child(5){animation-delay:.6s;}
+  @keyframes settle{
+    0%,100%{transform:translateX(0); opacity:.5;}
+    50%{transform:translateX(3px); opacity:1;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .signature .dot{animation:none;}
+    section.view.active{animation:none;}
+  }
+
+  /* ---------- top bar / nav ---------- */
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    position:sticky;
+    top:0;
+    z-index:30;
+    background:var(--bg);
+    padding:16px 0;
+    margin-bottom:20px;
+    border-bottom:1px solid var(--border);
+  }
+  .back{
+    all:unset;
+    cursor:pointer;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color:var(--text-dim);
+    display:flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 0;
+  }
+  .back:hover{color:var(--text);}
+  .crumb{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--text-dim);
+    letter-spacing:.04em;
+  }
+
+  /* ---------- method intro page ---------- */
+  .method-head .tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+  }
+  .method-head h2{font-size:clamp(26px,4vw,36px); margin:8px 0 18px;}
+  .method-head p{color:var(--text-dim); max-width:60ch; font-size:16px;}
+  .subnav{
+    display:flex;
+    gap:16px;
+    margin-top:34px;
+    flex-wrap:wrap;
+  }
+  .subnav-btn{
+    all:unset;
+    cursor:pointer;
+    flex:1 1 220px;
+    padding:26px 22px;
+    border-radius:var(--radius);
+    background:var(--surface);
+    border:1px solid var(--border);
+    transition:transform .18s ease, border-color .18s ease;
+  }
+  .subnav-btn:hover{transform:translateY(-3px);}
+  .subnav-btn:focus-visible{outline:2px solid var(--text); outline-offset:3px;}
+  .subnav-btn .num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--text-dim);
+    display:block;
+    margin-bottom:10px;
+  }
+  .subnav-btn .label{
+    font-family:'Space Grotesk', sans-serif;
+    font-size:19px;
+    font-weight:600;
+  }
+  .subnav-btn .desc{color:var(--text-dim); font-size:13.5px; margin-top:6px;}
+
+  /* accent binding per method */
+  [data-accent="jacobi"] .tag{color:var(--jacobi);}
+  [data-accent="jacobi"] .subnav-btn:hover{border-color:var(--jacobi);}
+  [data-accent="gs"] .tag{color:var(--gs);}
+  [data-accent="gs"] .subnav-btn:hover{border-color:var(--gs);}
+  [data-accent="intro"] .tag{color:var(--intro);}
+  [data-accent="calc"] .tag{color:var(--calc);}
+  .crumb-link{cursor:pointer; text-decoration:underline; font-weight:500; background:none; border:none; font-family:'IBM Plex Mono', monospace; font-size:12px;}
+  [data-accent="jacobi"] .crumb-link{color:var(--jacobi);}
+  [data-accent="gs"] .crumb-link{color:var(--gs);}
+
+  /* ---------- calculadora ---------- */
+  .calc-controls{display:flex; flex-direction:column; gap:22px; margin:24px 0;}
+  .calc-row{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+  .calc-row label{font-size:14px; color:var(--text-dim);}
+  .calc-select, .calc-num{
+    font-family:'IBM Plex Mono', monospace;
+    background:var(--surface);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:6px;
+    padding:7px 10px;
+    font-size:14px;
+  }
+  .calc-num{width:90px;}
+  .calc-radio-group{display:flex; gap:20px;}
+  .calc-radio-group label{display:flex; align-items:center; gap:6px; color:var(--text); font-size:14px; cursor:pointer;}
+  .calc-matrix-table{border-collapse:collapse; font-family:'IBM Plex Mono', monospace; font-size:13px;}
+  .calc-matrix-table th{color:var(--text-dim); font-weight:500; padding:4px 6px; text-align:center;}
+  .calc-matrix-table td{padding:4px;}
+  .calc-cell{
+    width:58px;
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    background:var(--surface);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:6px;
+    padding:6px 4px;
+    font-size:13px;
+  }
+  .calc-cell:focus{outline:2px solid var(--calc); outline-offset:1px;}
+  .calc-eq{color:var(--text-dim); padding:0 6px; text-align:center;}
+  .calc-btn{
+    all:unset;
+    cursor:pointer;
+    background:var(--calc);
+    color:#fbeef2;
+    padding:11px 26px;
+    border-radius:8px;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:15px;
+    transition:opacity .15s ease;
+  }
+  .calc-btn:hover{opacity:.88;}
+  .calc-error{
+    background:var(--surface-2);
+    border:1px solid #a3432f;
+    color:#a3432f;
+    border-radius:8px;
+    padding:12px 16px;
+    font-size:14px;
+    margin:12px 0;
+  }
+  .calc-scroll{overflow-x:auto;}
+
+  /* ---------- content blocks (teoria / practica) ---------- */
+  .content h2{font-size:clamp(24px,3.6vw,32px); margin-bottom:6px;}
+  .content .kicker{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .content h3{font-size:18px; margin:34px 0 10px; clear:both;}
+  .content p{font-size:15.5px; color:#5f4a33;}
+  .content ul{padding-left:20px; font-size:15px; color:#5f4a33;}
+  .content li{margin-bottom:6px;}
+
+  .formula-box{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-left:3px solid var(--accent-color, var(--text-dim));
+    border-radius:8px;
+    padding:18px 20px;
+    margin:16px 0;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:14.5px;
+    overflow-x:auto;
+    white-space:pre;
+  }
+  .math-box{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-left:3px solid var(--accent-color, var(--text-dim));
+    border-radius:8px;
+    padding:22px 24px;
+    margin:16px 0;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:17px;
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:2px;
+    overflow-x:auto;
+  }
+  .math-box .frac{
+    display:inline-flex;
+    flex-direction:column;
+    align-items:center;
+    vertical-align:middle;
+    margin:0 6px;
+    font-size:14px;
+  }
+  .math-box .frac .num{border-bottom:1.4px solid currentColor; padding:0 3px 2px;}
+  .math-box .frac .den{padding:2px 3px 0;}
+  .math-box .bigsum{
+    display:inline-flex;
+    flex-direction:column;
+    align-items:center;
+    line-height:1;
+    margin:0 4px;
+    vertical-align:middle;
+  }
+  .math-box .bigsum .lim-top{font-size:10px; margin-bottom:1px;}
+  .math-box .bigsum .sigma{font-size:26px; line-height:.8; font-family:'IBM Plex Sans', serif;}
+  .math-box .bigsum .lim-bot{font-size:10px; margin-top:1px;}
+  .math-box sub{font-size:11px;}
+  .math-box sup{font-size:11px;}
+  .math-box .bracket{font-size:26px; font-weight:300; margin:0 2px;}
+  .math-stack{flex-direction:column; align-items:flex-start; gap:16px;}
+  .math-row{display:flex; align-items:center; flex-wrap:wrap; gap:2px;}
+  .vec{position:relative; font-weight:600; padding-top:0.55em;}
+  .vec::before{
+    content:'';
+    position:absolute;
+    top:0.05em; left:0.05em; right:0.15em;
+    height:0.65em;
+    border-top:1.4px solid currentColor;
+  }
+  .vec::after{
+    content:'';
+    position:absolute;
+    top:-0.02em; right:0.05em;
+    width:0; height:0;
+    border-top:3px solid transparent;
+    border-bottom:3px solid transparent;
+    border-left:4px solid currentColor;
+  }
+  [data-accent="jacobi"] .formula-box, [data-accent="jacobi"] .math-box{--accent-color:var(--jacobi);}
+  [data-accent="gs"] .formula-box, [data-accent="gs"] .math-box{--accent-color:var(--gs);}
+
+  .note{
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:13px 15px;
+    font-size:12.5px;
+    line-height:1.5;
+    color:var(--text-dim);
+    float:right;
+    clear:right;
+    width:200px;
+    margin:8px 0 28px 24px;
+  }
+  .note b{color:var(--text);}
+  @media (max-width:700px){
+    .note{float:none; clear:none; width:auto; margin:16px 0;}
+  }
+
+  .two-col{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+    margin:16px 0;
+  }
+  @media (max-width:640px){.two-col{grid-template-columns:1fr;}}
+  .pillar{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:16px 18px;
+  }
+  .pillar h4{margin:0 0 8px; font-size:14px; font-family:'IBM Plex Mono',monospace; letter-spacing:.04em;}
+  .pillar.up h4{color:#3f7a3f;}
+  .pillar.down h4{color:#a3432f;}
+
+  /* flow diagram */
+  .flow-wrap{margin:20px 0 8px;}
+  svg text{font-family:'IBM Plex Mono', monospace; fill:var(--text);}
+
+  /* iteration table */
+  .iter-table{width:100%; border-collapse:collapse; margin:14px 0 8px; font-size:14px;}
+  .iter-table th, .iter-table td{
+    border:1px solid var(--border);
+    padding:9px 12px;
+    text-align:left;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .iter-table th{color:var(--text-dim); font-weight:500; background:var(--surface-2);}
+  .iter-table td.final{color:var(--result); font-weight:600;}
+  .iter-table tr:last-child td{border-bottom:2px solid var(--accent-color, var(--text-dim));}
+  [data-accent="jacobi"] .iter-table tr:last-child td{--accent-color:var(--jacobi);}
+  [data-accent="gs"] .iter-table tr:last-child td{--accent-color:var(--gs);}
+
+  .step{
+    border-left:2px solid var(--border);
+    padding:2px 0 2px 18px;
+    margin:18px 0;
+  }
+  .step .step-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--accent-color, var(--text-dim));
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  [data-accent="jacobi"] .step{--accent-color:var(--jacobi);}
+  [data-accent="gs"] .step{--accent-color:var(--gs);}
+
+  .result-vec{
+    display:inline-block;
+    background:var(--surface);
+    border:1px solid var(--result);
+    color:var(--result);
+    font-family:'IBM Plex Mono', monospace;
+    padding:8px 14px;
+    border-radius:6px;
+    font-size:14px;
+    margin-top:6px;
+  }
+
+  footer.pagefoot{
+    margin-top:56px;
+    padding-top:18px;
+    border-top:1px solid var(--border);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    color:var(--text-dim);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ CARÁTULA ============ -->
+  <section class="view" id="view-home">
+    <div class="caratula">
+      <p class="eyebrow">U.T.N. · Facultad Regional La Plata</p>
+      <div class="bracket-frame">
+        <p class="eyebrow" style="margin-bottom:14px;">Cátedra de Análisis Numérico</p>
+        <h1>Métodos Iterativos para<br>Sistemas de Ecuaciones Lineales</h1>
+        <p class="subtitle">Jacobi &amp; Gauss-Seidel</p>
+      </div>
+      <div class="meta-block">
+        <span>Integrantes: <span class="editable">Jesus Vergara, Emiliano Cuervo, Ulises Moran, Rodrigo Cariaga</span></span>
+        <span>Grupo: <span class="editable">12</span></span>
+        <span>Fecha de exposición: <span class="editable">31/08/2026</span></span>
+      </div>
+      <div class="method-picker">
+        <button class="method-btn intro" onclick="navigate('introduccion')" style="width:280px;">
+          <span class="tag">Empezar por acá</span>
+          <span class="name">Introducción</span>
+        </button>
+      </div>
+      <button class="back" style="margin-top:22px;" onclick="navigate('fuentes')">Ver fuentes consultadas →</button>
+      <div class="signature" aria-hidden="true">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ JACOBI: INTRO ============ -->
+  <section class="view" id="view-jacobi" data-accent="jacobi">
+    <div class="topbar">
+      <button class="back" onclick="navigate('introduccion')">← Introducción</button>
+      <span class="crumb">Jacobi</span>
+      <button class="back" onclick="navigate('home')">Inicio</button>
+    </div>
+    <div class="method-head">
+      <p class="tag">Método 01 · Iterativo</p>
+      <h2>Jacobi</h2>
+      <p>Calcula todas las incógnitas de una iteración usando <b style="color:var(--text)">únicamente</b> los valores de la iteración anterior. Como ningún cálculo depende de otro dentro de la misma iteración, los tres (o los N) se pueden resolver en paralelo, que es la idea central detrás de por qué existe, y de su principal ventaja frente a Gauss-Seidel.</p>
+    </div>
+    <div class="subnav">
+      <button class="subnav-btn" onclick="navigate('jacobi/teoria')">
+        <span class="num">01</span>
+        <span class="label">Teoría</span>
+        <p class="desc">Fórmula, condición de convergencia, ventajas y limitaciones.</p>
+      </button>
+      <button class="subnav-btn" onclick="navigate('jacobi/practica')">
+        <span class="num">02</span>
+        <span class="label">Práctica</span>
+        <p class="desc">Ejercicio resuelto paso a paso, 3 iteraciones.</p>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ JACOBI: TEORÍA ============ -->
+  <section class="view" id="view-jacobi-teoria" data-accent="jacobi">
+    <div class="topbar">
+      <button class="back" onclick="navigate('jacobi')">← Jacobi</button>
+      <span class="crumb">Jacobi / Teoría · <button class="crumb-link" onclick="navigate('jacobi/practica')">Ir a práctica →</button></span>
+      <button class="back" onclick="navigate('home')">Inicio</button>
+    </div>
+    <div class="content">
+      <p class="kicker" style="color:var(--jacobi)">Teoría</p>
+      <h2>Método de Jacobi</h2>
+      <p>Es un método iterativo para resolver sistemas de ecuaciones lineales Ax = b. En vez de resolver el sistema de una sola vez (como Gauss o Cramer), parte de un vector inicial x⁽⁰⁾ y lo va refinando iteración a iteración hasta acercarse a la solución real.</p>
+
+      <h3>1. El requisito fundamental: La Matriz Diagonalmente Dominante</h3>
+      <p>Lo primero que se debe hacer para aplicar el método de Jacobi (o cualquier método iterativo) en la resolución de un sistema de ecuaciones es verificar su convergencia a una solución.</p>
+      <ul>
+        <li>Para lograr esto, la regla de oro es comprobar que la matriz de los coeficientes sea <b style="color:var(--text)">diagonalmente dominante</b>.</li>
+        <li>La condición matemática establece que el valor absoluto de cada elemento de la diagonal principal (a<sub>ii</sub>) tiene que ser mayor o igual a la suma en valor absoluto del resto de las componentes de cada fila (a<sub>ij</sub>). En fórmula:</li>
+      </ul>
+      <div class="math-box">
+        <span>|a<sub>ii</sub>|</span><span>&nbsp;≥&nbsp;</span>
+        <span class="bigsum"><span class="lim-top">n</span><span class="sigma">Σ</span><span class="lim-bot">j=1</span></span>
+        <span>|a<sub>ij</sub>|</span>
+      </div>
+      <ul>
+        <li>¿Por qué es vital este paso? Al ser un método iterativo, si no se verificara esta condición, podríamos estar haciendo iteraciones indefinidamente y nunca llegaríamos a resolver el problema.</li>
+        <li>Si la matriz cumple con ser diagonalmente dominante, esto nos da la total certeza de que el problema se va a poder resolver, incluso si hubiera que aplicar miles de iteraciones.</li>
+        <li>Es importante saber que esta condición es suficiente, pero no necesaria. Esto significa que es suficiente que sea diagonalmente dominante para tener certeza de que hay solución, pero el sistema podría no ser diagonalmente dominante e igualmente tener solución (aunque al no tener la certeza, no aplicamos el método a ciegas).</li>
+        <li><b style="color:var(--text)">Reordenamiento:</b> Si la matriz original no es diagonalmente dominante, a veces se pueden intercalar filas (o columnas) para llevar el sistema a una matriz que sí lo sea. Recién sobre esta nueva matriz reordenada es seguro aplicar el método.</li>
+      </ul>
+      <div class="note"><b>La condición exacta: el radio espectral.</b> La dominancia diagonal es suficiente pero no necesaria. La condición matemática que sí es necesaria y suficiente para que el método converja a una solución única, sea cual sea el vector inicial, es que el radio espectral de la matriz de iteración T<sub>j</sub> (el módulo de su mayor valor propio) sea estrictamente menor a 1: ρ(T<sub>j</sub>) &lt; 1. La dominancia diagonal es más fácil de verificar a mano, pero esta es la condición real detrás.</div>
+      <p>¿Por qué exactamente el radio espectral? Definiendo el error de la iteración k como e<sup>(k)</sup> = x<sup>(k)</sup> − x (la diferencia entre la aproximación y la solución exacta), se puede demostrar que ese error se propaga de iteración en iteración multiplicándose por la matriz de iteración:</p>
+      <div class="formula-box"><span class="vec">e</span><sup>(k)</sup> = T<sub>j</sub><sup>k</sup> · <span class="vec">e</span><sup>(0)</sup></div>
+      <p>Como T<sub>j</sub><sup>k</sup> tiende a la matriz nula solo cuando ρ(T<sub>j</sub>) &lt; 1, esa es la única forma matemática de garantizar que el error se achique iteración a iteración hasta desaparecer.</p>
+      <div class="note"><b>Decisión práctica.</b> Si el sistema no es diagonalmente dominante, matemáticamente podría converger de todos modos. Sin embargo, en la práctica no conviene aplicar Jacobi en ese estado: se pierde la garantía de llegar al resultado, y no hay forma simple de saberlo de antemano sin calcular el radio espectral exacto.</div>
+
+      <h3>2. Fundamento del Algoritmo iterativo</h3>
+      <p>Una vez garantizada la convergencia por la diagonal, el método consiste en ir aproximándose al resultado paso a paso.</p>
+      <ul>
+        <li>El método de Jacobi calcula los valores de las incógnitas (por ejemplo x, y, z) en la iteración actual (llamada iteración "k").</li>
+        <li>Para hacer este cálculo, se basa exclusivamente en los valores de las incógnitas que se calcularon en la iteración anterior (llamada iteración "k-1").</li>
+        <li>Debido a que siempre requiere los datos del paso previo, el método necesita obligatoriamente partir de un vector inicial, que llamamos <span class="vec">x</span><sup>(0)</sup>.</li>
+        <li>Este vector inicial permite obtener el resultado de la primera iteración, y luego con ese nuevo resultado se calcula la segunda, y así sucesivamente.</li>
+      </ul>
+
+      <h3>3. Expresión Matemática General</h3>
+      <p>La fórmula general de la matriz iterativa del método de Jacobi, que indica cómo se debe despejar cada incógnita de la diagonal, es la siguiente:</p>
+      <div class="math-box">
+        <span>x<sub>i</sub><sup>(k)</sup></span>
+        <span>&nbsp;=&nbsp;</span>
+        <span class="frac"><span class="num">1</span><span class="den">a<sub>ii</sub></span></span>
+        <span class="bracket">[</span>
+        <span>b<sub>i</sub> −</span>
+        <span class="bigsum"><span class="lim-top">n</span><span class="sigma">Σ</span><span class="lim-bot">j=1</span></span>
+        <span>a<sub>ij</sub> x<sub>j</sub><sup>(k−1)</sup></span>
+        <span class="bracket">]</span>
+      </div>
+
+      <h3>4. Forma Matricial</h3>
+      <p>El método también se puede expresar dividiendo la matriz A en tres partes: D (la diagonal), −L (la parte triangular inferior estricta) y −U (la parte triangular superior estricta), de forma que A = D − L − U.</p>
+      <div class="formula-box">A = D − L − U
+Dx = (L + U)x + b
+x = D<sup>−1</sup>(L + U)x + D<sup>−1</sup>b</div>
+      <p>La forma matricial del método de Jacobi queda entonces:</p>
+      <div class="formula-box">x<sup>(k)</sup> = T<sub>j</sub> x<sup>(k−1)</sup> + c<sub>j</sub></div>
+      <p>donde T<sub>j</sub> = D<sup>−1</sup>(L + U) es la matriz de iteración de Jacobi.</p>
+      <p>Se elige descomponer usando D porque, al ser una matriz diagonal, su inversa es trivial de calcular: alcanza con invertir cada elemento de la diagonal por separado. Una forma equivalente de escribir la misma matriz de iteración, reemplazando A = D − L − U directamente, es:</p>
+      <div class="formula-box">T<sub>j</sub> = I − D<sup>−1</sup>A</div>
+      <p>donde I es la matriz identidad. Da exactamente el mismo resultado que D<sup>−1</sup>(L + U).</p>
+
+      <h3>Flujo de datos: todo en paralelo</h3>
+      <div class="flow-wrap">
+        <svg viewBox="0 0 640 150" width="100%" height="150" role="img" aria-label="Diagrama: en Jacobi, x, y, z de la iteración k dependen solo de la iteración k-1">
+          <text x="20" y="24" font-size="12" fill="#8a6f4f">iteración k−1</text>
+          <text x="20" y="130" font-size="12" fill="#8a6f4f">iteración k</text>
+          <g font-size="14">
+            <circle cx="60" cy="45" r="18" fill="#f3ead9" stroke="#3d6a8a"/><text x="60" y="50" text-anchor="middle" fill="#4a3623">x</text>
+            <circle cx="160" cy="45" r="18" fill="#f3ead9" stroke="#3d6a8a"/><text x="160" y="50" text-anchor="middle" fill="#4a3623">y</text>
+            <circle cx="260" cy="45" r="18" fill="#f3ead9" stroke="#3d6a8a"/><text x="260" y="50" text-anchor="middle" fill="#4a3623">z</text>
+            <circle cx="60" cy="105" r="18" fill="#dfe9ee" stroke="#3d6a8a" stroke-width="2"/><text x="60" y="110" text-anchor="middle" fill="#4a3623">x</text>
+            <circle cx="160" cy="105" r="18" fill="#dfe9ee" stroke="#3d6a8a" stroke-width="2"/><text x="160" y="110" text-anchor="middle" fill="#4a3623">y</text>
+            <circle cx="260" cy="105" r="18" fill="#dfe9ee" stroke="#3d6a8a" stroke-width="2"/><text x="260" y="110" text-anchor="middle" fill="#4a3623">z</text>
+          </g>
+          <g stroke="#3d6a8a" stroke-width="1.4" fill="none" marker-end="url(#arrJ)">
+            <path d="M60,63 L60,87"/>
+            <path d="M160,63 L160,87"/>
+            <path d="M260,63 L260,87"/>
+            <path d="M60,63 C90,80 130,90 160,87"/>
+            <path d="M160,63 C130,80 90,90 60,87"/>
+            <path d="M160,63 C190,80 230,90 260,87"/>
+            <path d="M260,63 C230,80 190,90 160,87"/>
+            <path d="M60,63 C130,80 200,90 260,87"/>
+            <path d="M260,63 C200,80 130,90 60,87"/>
+          </g>
+          <defs><marker id="arrJ" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#3d6a8a"/></marker></defs>
+          <text x="340" y="80" font-size="12.5" fill="#8a6f4f">Ningún cálculo de la fila<tspan x="340" dy="16">de abajo usa otro de la</tspan><tspan x="340" dy="16">misma fila → paralelizable.</tspan></text>
+        </svg>
+      </div>
+
+      <h3>Ventajas y limitaciones</h3>
+      <div class="two-col">
+        <div class="pillar up">
+          <h4>VENTAJAS</h4>
+          <ul>
+            <li>Los cálculos de una iteración son independientes entre sí → se puede paralelizar.</li>
+            <li>Implementación simple y directa.</li>
+          </ul>
+        </div>
+        <div class="pillar down">
+          <h4>LIMITACIONES</h4>
+          <ul>
+            <li>Converge más lento que Gauss-Seidel.</li>
+            <li>Requiere guardar dos vectores completos en memoria (actual y anterior).</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Criterio de parada</h3>
+      <p>En la práctica, el algoritmo no itera para siempre: se detiene cuando la diferencia entre la iteración actual y la anterior es lo suficientemente chica, menor a una tolerancia TOL dada (por ejemplo, 10⁻³). Esto se mide con la norma infinito sobre todo el vector:</p>
+      <div class="math-box">
+        <span class="frac"><span class="num">‖x<sup>(k)</sup> − x<sup>(k−1)</sup>‖<sub>∞</sub></span><span class="den">‖x<sup>(k)</sup>‖<sub>∞</sub></span></span>
+        <span>&nbsp;&lt; TOL</span>
+      </div>
+      <p>Una forma equivalente, más granular, es exigir que el error absoluto entre cada variable de una iteración y la anterior sea menor a una tolerancia ε chica (por ejemplo, 10⁻⁴), para todas las variables:</p>
+      <div class="math-box"><span>|x<sub>i</sub><sup>(k)</sup> − x<sub>i</sub><sup>(k−1)</sup>|</span><span>&nbsp;&lt; ε</span></div>
+      <p>o, si se prefiere medir el error en relación al tamaño del valor (error relativo):</p>
+      <div class="math-box">
+        <span class="frac"><span class="num">|x<sub>i</sub><sup>(k)</sup> − x<sub>i</sub><sup>(k−1)</sup>|</span><span class="den">|x<sub>i</sub><sup>(k)</sup>|</span></span>
+        <span>&nbsp;&lt; ε</span>
+      </div>
+      <p>En los ejercicios de esta exposición se usó un número fijo de 3 iteraciones porque así lo pedía cada enunciado, pero en una implementación real este es el criterio que se usaría para frenar automáticamente.</p>
+    </div>
+    <footer class="pagefoot"><span>Jacobi · Teoría</span><span>Sistemas de Ecuaciones Lineales</span></footer>
+  </section>
+
+  <!-- ============ JACOBI: PRÁCTICA ============ -->
+  <section class="view" id="view-jacobi-practica" data-accent="jacobi">
+    <div class="topbar">
+      <button class="back" onclick="navigate('jacobi')">← Jacobi</button>
+      <span class="crumb">Jacobi / Práctica · <button class="crumb-link" onclick="navigate('jacobi/teoria')">Ir a teoría →</button></span>
+      <button class="back" onclick="navigate('home')">Inicio</button>
+    </div>
+    <div class="content">
+      <p class="kicker" style="color:var(--jacobi)">Práctica</p>
+      <h2>Resolución paso a paso</h2>
+      <h3 style="margin-top:0;">Ejemplo 1</h3>
+      <p><b style="color:var(--text)">Problema:</b> Dado el siguiente sistema de ecuaciones lineales, realizar 3 iteraciones por el método de Jacobi partiendo del vector inicial <span class="vec">x</span><sup>(0)</sup> = {0, 0, 0}.</p>
+      <div class="formula-box">3x +  y +  z =  4
+2x + 5y +  z = -1
+-x +  y + 3z =  4</div>
+
+      <h3>Paso 1: Armar la Matriz Iterativa</h3>
+      <p>Para aplicar el método de Jacobi, primero debemos despejar de cada ecuación la incógnita correspondiente a la diagonal principal (x de la primera, y de la segunda, z de la tercera). Luego, agregamos los índices "k" para la iteración actual y "k-1" para los valores de la iteración anterior:</p>
+      <div class="math-box math-stack">
+        <div class="math-row"><span>x<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">3</span></span><span>[ 4 − ( y<sup>(k−1)</sup> + z<sup>(k−1)</sup> ) ]</span></div>
+        <div class="math-row"><span>y<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">5</span></span><span>[ −1 − ( 2x<sup>(k−1)</sup> + z<sup>(k−1)</sup> ) ]</span></div>
+        <div class="math-row"><span>z<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">3</span></span><span>[ 4 − ( −x<sup>(k−1)</sup> + y<sup>(k−1)</sup> ) ]</span></div>
+      </div>
+
+      <h3>Paso 2: Ejecutar las 3 Iteraciones</h3>
+
+      <div class="step">
+        <div class="step-label">Iteración 1 (k = 1)</div>
+        <p>Reemplazamos en las fórmulas los valores del vector inicial, donde x = 0, y = 0 y z = 0.</p>
+        <ul>
+          <li>x<sup>(1)</sup> = ⅓ [4 − (0 + 0)] = 4/3</li>
+          <li>y<sup>(1)</sup> = ⅕ [−1 − (2(0) + 0)] = −1/5</li>
+          <li>z<sup>(1)</sup> = ⅓ [4 − (−0 + 0)] = 4/3</li>
+        </ul>
+        <p>Vector resultante 1: <span class="result-vec"><span class="vec">x</span><sup>(1)</sup> = {4/3, −1/5, 4/3}</span></p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Iteración 2 (k = 2)</div>
+        <p>Ahora utilizamos los valores obtenidos en la iteración 1: x = 4/3, y = −1/5 y z = 4/3.</p>
+        <ul>
+          <li>x<sup>(2)</sup> = ⅓ [4 − (−1/5 + 4/3)] = 0.95</li>
+          <li>y<sup>(2)</sup> = ⅕ [−1 − (2(4/3) + 4/3)] = −1</li>
+          <li>z<sup>(2)</sup> = ⅓ [4 − (−4/3 + (−1/5))] = 1.84</li>
+        </ul>
+        <p>Vector resultante 2: <span class="result-vec"><span class="vec">x</span><sup>(2)</sup> = {0.95, −1, 1.84}</span></p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Iteración 3 (k = 3)</div>
+        <p>Finalmente, utilizamos los valores obtenidos en la iteración 2: x = 0.95, y = −1 y z = 1.84.</p>
+        <ul>
+          <li>x<sup>(3)</sup> = ⅓ [4 − (−1 + 1.84)] = 1.053</li>
+          <li>y<sup>(3)</sup> = ⅕ [−1 − (2(0.95) + 1.84)] = −0.948</li>
+          <li>z<sup>(3)</sup> = ⅓ [4 − (−0.95 + (−1))] = 1.983</li>
+        </ul>
+        <p>Vector resultante 3: <span class="result-vec"><span class="vec">x</span><sup>(3)</sup> = {1.053, −0.948, 1.983}</span></p>
+      </div>
+
+      <h3>Conclusión del Ejercicio</h3>
+      <p>La solución exacta de este sistema de ecuaciones es <span class="vec">x</span> = {1, −1, 2}. Como podemos observar, en tan solo tres iteraciones hemos obtenido un resultado bastante cercano a la solución exacta.</p>
+
+      <h3 style="margin-top:56px; padding-top:28px; border-top:1px solid var(--border);">Ejemplo 2</h3>
+      <p><b style="color:var(--text)">Problema:</b> Resolver el siguiente sistema de ecuaciones lineales por el método de Jacobi, realizando 3 iteraciones, partiendo del vector inicial <span class="vec">x</span><sup>(0)</sup> = {0.7, −1.6, 0.6}.</p>
+      <div class="formula-box">10x + 2y +  z =  7
+ x + 5y +  z = -8
+2x + 3y + 10z =  6</div>
+
+      <h4 style="margin:26px 0 8px; font-size:16px;">Paso 1: Armar la Matriz Iterativa</h4>
+      <p>Verificamos primero que la matriz sea diagonalmente dominante: |10| ≥ |2|+|1|, |5| ≥ |1|+|1|, |10| ≥ |2|+|3|, se cumple en las tres filas, así que el método converge. Despejamos cada incógnita de la diagonal:</p>
+      <div class="math-box math-stack">
+        <div class="math-row"><span>x<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">10</span></span><span>[ 7 − ( 2y<sup>(k−1)</sup> + z<sup>(k−1)</sup> ) ]</span></div>
+        <div class="math-row"><span>y<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">5</span></span><span>[ −8 − ( x<sup>(k−1)</sup> + z<sup>(k−1)</sup> ) ]</span></div>
+        <div class="math-row"><span>z<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">10</span></span><span>[ 6 − ( 2x<sup>(k−1)</sup> + 3y<sup>(k−1)</sup> ) ]</span></div>
+      </div>
+
+      <h4 style="margin:26px 0 8px; font-size:16px;">Paso 2: Ejecutar las 3 Iteraciones</h4>
+
+      <div class="step">
+        <div class="step-label">Iteración 1 (k = 1)</div>
+        <p>Reemplazamos con el vector inicial: x = 0.7, y = −1.6, z = 0.6.</p>
+        <ul>
+          <li>x<sup>(1)</sup> = ⅒ [7 − (2(−1.6) + 0.6)] = 0.96</li>
+          <li>y<sup>(1)</sup> = ⅕ [−8 − (0.7 + 0.6)] = −1.86</li>
+          <li>z<sup>(1)</sup> = ⅒ [6 − (2(0.7) + 3(−1.6))] = 0.94</li>
+        </ul>
+        <p>Vector resultante 1: <span class="result-vec"><span class="vec">x</span><sup>(1)</sup> = {0.96, −1.86, 0.94}</span></p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Iteración 2 (k = 2)</div>
+        <p>Usamos los valores de la iteración 1: x = 0.96, y = −1.86, z = 0.94.</p>
+        <ul>
+          <li>x<sup>(2)</sup> = ⅒ [7 − (2(−1.86) + 0.94)] = 0.978</li>
+          <li>y<sup>(2)</sup> = ⅕ [−8 − (0.96 + 0.94)] = −1.98</li>
+          <li>z<sup>(2)</sup> = ⅒ [6 − (2(0.96) + 3(−1.86))] = 0.966</li>
+        </ul>
+        <p>Vector resultante 2: <span class="result-vec"><span class="vec">x</span><sup>(2)</sup> = {0.978, −1.98, 0.966}</span></p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Iteración 3 (k = 3)</div>
+        <p>Usamos los valores de la iteración 2: x = 0.978, y = −1.98, z = 0.966.</p>
+        <ul>
+          <li>x<sup>(3)</sup> = ⅒ [7 − (2(−1.98) + 0.966)] = 0.9994</li>
+          <li>y<sup>(3)</sup> = ⅕ [−8 − (0.978 + 0.966)] = −1.9888</li>
+          <li>z<sup>(3)</sup> = ⅒ [6 − (2(0.978) + 3(−1.98))] = 0.9984</li>
+        </ul>
+        <p>Vector resultante 3: <span class="result-vec"><span class="vec">x</span><sup>(3)</sup> = {0.9994, −1.9888, 0.9984}</span></p>
+      </div>
+
+      <h4 style="margin:26px 0 8px; font-size:16px;">Conclusión del Ejercicio</h4>
+      <p>La solución exacta de este sistema es <span class="vec">x</span> = {1, −2, 1}. Con solo tres iteraciones, Jacobi ya está prácticamente sobre la solución exacta (el enunciado original pedía parar con tolerancia ≤ 0.05, pero acá se muestran las 3 iteraciones completas).</p>
+
+      <h3 style="margin-top:56px; padding-top:28px; border-top:1px solid var(--border);">Ejemplo 3</h3>
+      <p><b style="color:var(--text)">Problema:</b> Resolver el siguiente sistema lineal por el método de Jacobi, realizando 3 iteraciones, partiendo del vector inicial <span class="vec">x</span><sup>(0)</sup> = {0, 0, 0}. Es el mismo sistema del Ejemplo 5 de Gauss-Seidel, resuelto acá con Jacobi para comparar.</p>
+      <div class="formula-box">5x +  y +  z = 5
+3x + 4y +  z = 6
+3x + 3y + 6z = 0</div>
+
+      <h4 style="margin:26px 0 8px; font-size:16px;">Paso 1: Armar la Matriz Iterativa</h4>
+      <p>Verificamos primero que la matriz sea diagonalmente dominante: |5| ≥ |1|+|1|, |4| ≥ |3|+|1|, |6| ≥ |3|+|3|, se cumple (con igualdad en las filas 2 y 3), así que el método converge. Despejamos cada incógnita de la diagonal, con todos los índices en (k−1) porque es Jacobi:</p>
+      <div class="math-box math-stack">
+        <div class="math-row"><span>x<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">5</span></span><span>[ 5 − ( y<sup>(k−1)</sup> + z<sup>(k−1)</sup> ) ]</span></div>
+        <div class="math-row"><span>y<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">4</span></span><span>[ 6 − ( 3x<sup>(k−1)</sup> + z<sup>(k−1)</sup> ) ]</span></div>
+        <div class="math-row"><span>z<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">6</span></span><span>[ 0 − ( 3x<sup>(k−1)</sup> + 3y<sup>(k−1)</sup> ) ]</span></div>
+      </div>
+
+      <h4 style="margin:26px 0 8px; font-size:16px;">Paso 2: Ejecutar las 3 Iteraciones</h4>
+
+      <div class="step">
+        <div class="step-label">Iteración 1 (k = 1)</div>
+        <p>Reemplazamos con el vector inicial (x = 0, y = 0, z = 0). A diferencia de Gauss-Seidel, acá las tres cuentas de esta iteración usan solo valores del vector inicial, ninguna usa un valor recién calculado.</p>
+        <ul>
+          <li>x<sup>(1)</sup> = ⅕ [5 − (0 + 0)] = 1</li>
+          <li>y<sup>(1)</sup> = ¼ [6 − (3(0) + 0)] = 1.5</li>
+          <li>z<sup>(1)</sup> = ⅙ [0 − (3(0) + 3(0))] = 0</li>
+        </ul>
+        <p>Vector resultante 1: <span class="result-vec"><span class="vec">x</span><sup>(1)</sup> = {1, 1.5, 0}</span></p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Iteración 2 (k = 2)</div>
+        <p>Usamos los valores de la iteración 1: x = 1, y = 1.5, z = 0.</p>
+        <ul>
+          <li>x<sup>(2)</sup> = ⅕ [5 − (1.5 + 0)] = 0.7</li>
+          <li>y<sup>(2)</sup> = ¼ [6 − (3(1) + 0)] = 0.75</li>
+          <li>z<sup>(2)</sup> = ⅙ [0 − (3(1) + 3(1.5))] = −1.25</li>
+        </ul>
+        <p>Vector resultante 2: <span class="result-vec"><span class="vec">x</span><sup>(2)</sup> = {0.7, 0.75, −1.25}</span></p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Iteración 3 (k = 3)</div>
+        <p>Usamos los valores de la iteración 2: x = 0.7, y = 0.75, z = −1.25.</p>
+        <ul>
+          <li>x<sup>(3)</sup> = ⅕ [5 − (0.75 + (−1.25))] = 1.1</li>
+          <li>y<sup>(3)</sup> = ¼ [6 − (3(0.7) + (−1.25))] = 1.2875</li>
+          <li>z<sup>(3)</sup> = ⅙ [0 − (3(0.7) + 3(0.75))] = −0.725</li>
+        </ul>
+        <p>Vector resultante 3: <span class="result-vec"><span class="vec">x</span><sup>(3)</sup> = {1.1, 1.2875, −0.725}</span></p>
+      </div>
+
+      <h4 style="margin:26px 0 8px; font-size:16px;">Conclusión del Ejercicio</h4>
+      <p>La solución exacta de este sistema es <span class="vec">x</span> = {1, 1, −1}. Con Jacobi, después de 3 iteraciones todavía queda una diferencia notoria (sobre todo en z), a diferencia de Gauss-Seidel que sobre este mismo sistema llegaba mucho más cerca en las mismas 3 iteraciones. Es la comparación más clara de por qué Gauss-Seidel converge más rápido.</p>
+    </div>
+    <footer class="pagefoot"><span>Jacobi · Práctica</span><span>3 iteraciones</span></footer>
+  </section>
+
+  <!-- ============ GAUSS-SEIDEL: INTRO ============ -->
+  <section class="view" id="view-gauss-seidel" data-accent="gs">
+    <div class="topbar">
+      <button class="back" onclick="navigate('introduccion')">← Introducción</button>
+      <span class="crumb">Gauss-Seidel</span>
+      <button class="back" onclick="navigate('home')">Inicio</button>
+    </div>
+    <div class="method-head">
+      <p class="tag">Método 02 · Iterativo</p>
+      <h2>Gauss-Seidel</h2>
+      <p>Es un método iterativo para resolver sistemas de ecuaciones lineales, con una idea central: apenas calcula un valor nuevo dentro de una iteración, lo usa <b style="color:var(--text)">inmediatamente</b> para calcular el siguiente. Esa combinación de valores recién calculados y valores de la iteración anterior, dentro de la misma pasada, es lo que acelera la convergencia frente a esperar a que termine toda la iteración para usar los nuevos valores.</p>
+    </div>
+    <div class="subnav">
+      <button class="subnav-btn" onclick="navigate('gauss-seidel/teoria')">
+        <span class="num">01</span>
+        <span class="label">Teoría</span>
+        <p class="desc">Fórmula, condición de convergencia, ventajas y limitaciones.</p>
+      </button>
+      <button class="subnav-btn" onclick="navigate('gauss-seidel/practica')">
+        <span class="num">02</span>
+        <span class="label">Práctica</span>
+        <p class="desc">Ejercicio resuelto paso a paso, 3 iteraciones.</p>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ GAUSS-SEIDEL: TEORÍA ============ -->
+  <section class="view" id="view-gauss-seidel-teoria" data-accent="gs">
+    <div class="topbar">
+      <button class="back" onclick="navigate('gauss-seidel')">← Gauss-Seidel</button>
+      <span class="crumb">Gauss-Seidel / Teoría · <button class="crumb-link" onclick="navigate('gauss-seidel/practica')">Ir a práctica →</button></span>
+      <button class="back" onclick="navigate('home')">Inicio</button>
+    </div>
+    <div class="content">
+      <p class="kicker" style="color:var(--gs)">Teoría</p>
+      <h2>Método de Gauss-Seidel</h2>
+      <p>Es un método iterativo para resolver sistemas de ecuaciones lineales Ax = b: parte de un vector inicial y lo va refinando iteración a iteración. Se despeja cada incógnita de su propia ecuación (la que corresponde a la diagonal principal) y, a diferencia de otros métodos iterativos, cada nuevo valor calculado dentro de una iteración se usa de inmediato para calcular el siguiente en esa misma iteración.</p>
+
+      <h3>1. El requisito fundamental: La Convergencia</h3>
+      <p>Antes de resolver el sistema con Gauss-Seidel, el paso indispensable es verificar que va a converger a una solución.</p>
+      <ul>
+        <li>Para esto, se comprueba que la matriz de los coeficientes sea <b style="color:var(--text)">diagonalmente dominante</b>: el valor absoluto de cada elemento de la diagonal principal tiene que ser mayor o igual a la suma en valor absoluto del resto de los elementos de esa fila.</li>
+        <li>Si la matriz no cumple esta condición originalmente, a veces se puede reordenar filas (o columnas) para llevar el sistema a una matriz que sí la cumpla, y aplicar el método sobre esa nueva matriz reordenada.</li>
+        <li>Si la matriz es diagonalmente dominante, hay certeza de que el sistema se va a poder resolver, sin importar cuántas iteraciones haga falta. Esta condición es suficiente, pero no necesaria: el sistema podría no ser diagonalmente dominante y tener solución igual, solo que sin esa garantía.</li>
+      </ul>
+      <div class="note"><b>La condición exacta: el radio espectral.</b> La dominancia diagonal es más fácil de verificar a mano, pero la condición matemática que sí es necesaria y suficiente para que el método converja a una solución única, sea cual sea el vector inicial, es que el radio espectral de la matriz de iteración T<sub>g</sub> (el módulo de su mayor valor propio) sea estrictamente menor a 1: ρ(T<sub>g</sub>) &lt; 1.</div>
+      <p>¿Por qué exactamente el radio espectral? Definiendo el error de la iteración k como e<sup>(k)</sup> = x<sup>(k)</sup> − x (la diferencia entre la aproximación y la solución exacta), ese error se propaga de iteración en iteración multiplicándose por la matriz de iteración:</p>
+      <div class="formula-box"><span class="vec">e</span><sup>(k)</sup> = T<sub>g</sub><sup>k</sup> · <span class="vec">e</span><sup>(0)</sup></div>
+      <p>Como T<sub>g</sub><sup>k</sup> tiende a la matriz nula solo cuando ρ(T<sub>g</sub>) &lt; 1, esa es la única forma matemática de garantizar que el error se achique iteración a iteración hasta desaparecer.</p>
+      <div class="note"><b>Decisión práctica.</b> Si el sistema no es diagonalmente dominante, matemáticamente podría converger de todos modos. Sin embargo, en la práctica no conviene aplicar Gauss-Seidel en ese estado: se pierde la garantía de llegar al resultado, y no hay forma simple de saberlo de antemano sin calcular el radio espectral exacto.</div>
+
+      <h3>2. Fundamento del Algoritmo</h3>
+      <p>El método consiste en despejar de cada ecuación la incógnita correspondiente a la diagonal principal, y después ir aproximando el resultado paso a paso.</p>
+      <ul>
+        <li>Gauss-Seidel calcula los valores de las incógnitas en la iteración actual (iteración "k") basándose en una combinación de datos: usa los valores ya calculados en esa misma iteración "k" para las variables anteriores, y los valores de la iteración previa ("k-1") para las que todavía no se calcularon.</li>
+        <li>Por ejemplo, para calcular la segunda variable ("y") de una iteración, el método ya usa la "x" que se acaba de calcular unos pasos atrás en esa misma iteración, porque es un valor más actualizado. Para las variables que aún no se calcularon en esa iteración (como la "z"), toma el valor de la iteración anterior.</li>
+        <li><b style="color:var(--text)">La gran ventaja:</b> esta actualización inmediata de los datos durante el cálculo acelera mucho la convergencia respecto de usar siempre valores de la iteración anterior.</li>
+        <li>El método necesita partir de un vector inicial (denominado <span class="vec">x</span><sup>(0)</sup>) para poder calcular la primera iteración.</li>
+      </ul>
+
+      <h3>3. Expresión Matemática General</h3>
+      <p>La fórmula general para el método de Gauss-Seidel refleja esta combinación de datos de la iteración actual y la anterior:</p>
+      <div class="math-box">
+        <span>x<sub>i</sub><sup>(k)</sup></span>
+        <span>&nbsp;=&nbsp;</span>
+        <span class="frac"><span class="num">1</span><span class="den">a<sub>ii</sub></span></span>
+        <span class="bracket">[</span>
+        <span>b<sub>i</sub> −</span>
+        <span class="bigsum"><span class="lim-top">i−1</span><span class="sigma">Σ</span><span class="lim-bot">j=1</span></span>
+        <span>a<sub>ij</sub>x<sub>j</sub><sup>(k)</sup> −</span>
+        <span class="bigsum"><span class="lim-top">n</span><span class="sigma">Σ</span><span class="lim-bot">j=i+1</span></span>
+        <span>a<sub>ij</sub>x<sub>j</sub><sup>(k−1)</sup></span>
+        <span class="bracket">]</span>
+      </div>
+      <p>Para calcular x<sub>i</sub> en la iteración k, se usan los valores <i>ya actualizados</i> (j&lt;i, de esta misma iteración k) y los valores todavía viejos (j&gt;i, de la iteración k-1).</p>
+
+      <h3>4. Forma Matricial</h3>
+      <p>El método también se puede expresar dividiendo la matriz A en tres partes: D (la diagonal), −L (la parte triangular inferior estricta) y −U (la parte triangular superior estricta), de forma que A = D − L − U. En Gauss-Seidel, los términos ya calculados (D − L) quedan de un lado, y los que todavía usan la iteración anterior (U) del otro.</p>
+      <div class="formula-box">(D − L)x = Ux + b
+x = (D − L)<sup>−1</sup>Ux + (D − L)<sup>−1</sup>b</div>
+      <p>La forma matricial del método de Gauss-Seidel queda entonces:</p>
+      <div class="formula-box">x<sup>(k)</sup> = T<sub>g</sub> x<sup>(k−1)</sup> + c<sub>g</sub></div>
+      <p>donde T<sub>g</sub> = (D − L)<sup>−1</sup>U es la matriz de iteración de Gauss-Seidel.</p>
+      <p>Usando otra notación habitual, la misma descomposición se escribe A = (D − E) − F, donde E es la parte triangular inferior estricta (lo mismo que L) y F es la parte triangular superior estricta (lo mismo que U). La razón práctica de agrupar así es que (D − E), al ser una matriz triangular inferior con la diagonal completa, es mucho más fácil de invertir que la matriz A completa: se resuelve por sustitución hacia adelante, sin necesitar calcular una inversa completa.</p>
+
+      <h3>Flujo de datos: mezcla secuencial</h3>
+      <div class="flow-wrap">
+        <svg viewBox="0 0 640 150" width="100%" height="150" role="img" aria-label="Diagrama: en Gauss-Seidel, cada cálculo usa el anterior de la misma iteración">
+          <text x="20" y="24" font-size="12" fill="#8a6f4f">iteración k−1</text>
+          <text x="20" y="130" font-size="12" fill="#8a6f4f">iteración k</text>
+          <g font-size="14">
+            <circle cx="60" cy="45" r="18" fill="#f3ead9" stroke="#a35d1f"/><text x="60" y="50" text-anchor="middle" fill="#4a3623">x</text>
+            <circle cx="160" cy="45" r="18" fill="#f3ead9" stroke="#a35d1f"/><text x="160" y="50" text-anchor="middle" fill="#4a3623">y</text>
+            <circle cx="260" cy="45" r="18" fill="#f3ead9" stroke="#a35d1f"/><text x="260" y="50" text-anchor="middle" fill="#4a3623">z</text>
+            <circle cx="60" cy="105" r="18" fill="#f0ddba" stroke="#a35d1f" stroke-width="2"/><text x="60" y="110" text-anchor="middle" fill="#4a3623">x</text>
+            <circle cx="160" cy="105" r="18" fill="#f0ddba" stroke="#a35d1f" stroke-width="2"/><text x="160" y="110" text-anchor="middle" fill="#4a3623">y</text>
+            <circle cx="260" cy="105" r="18" fill="#f0ddba" stroke="#a35d1f" stroke-width="2"/><text x="260" y="110" text-anchor="middle" fill="#4a3623">z</text>
+          </g>
+          <g stroke="#a35d1f" stroke-width="1.4" fill="none" marker-end="url(#arrG)">
+            <path d="M60,63 L60,87"/>
+            <path d="M160,63 C130,80 90,90 60,87" stroke-dasharray="3,3"/>
+            <path d="M260,63 C230,80 190,90 160,87" stroke-dasharray="3,3"/>
+            <path d="M60,87 L152,100"/>
+            <path d="M168,100 L252,100"/>
+          </g>
+          <defs><marker id="arrG" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#a35d1f"/></marker></defs>
+          <text x="340" y="80" font-size="12.5" fill="#8a6f4f">y⁽ᵏ⁾ ya usa x⁽ᵏ⁾ (recién<tspan x="340" dy="16">calculado); z⁽ᵏ⁾ usa x⁽ᵏ⁾</tspan><tspan x="340" dy="16">e y⁽ᵏ⁾ → secuencial.</tspan></text>
+        </svg>
+      </div>
+
+      <h3>Ventajas y limitaciones</h3>
+      <div class="two-col">
+        <div class="pillar up">
+          <h4>VENTAJAS</h4>
+          <ul>
+            <li>Converge más rápido que Jacobi (usa valores ya actualizados).</li>
+            <li>Necesita menos memoria: se puede ir pisando el mismo vector.</li>
+          </ul>
+        </div>
+        <div class="pillar down">
+          <h4>LIMITACIONES</h4>
+          <ul>
+            <li>Es secuencial por naturaleza → no se paraleliza fácilmente.</li>
+            <li>El orden de las ecuaciones puede afectar la velocidad de convergencia.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="note"><b>Un ejemplo real de la diferencia.</b> El libro de Burden &amp; Faires compara ambos métodos sobre un mismo sistema: Jacobi necesitó 10 iteraciones para alcanzar una precisión de 10⁻³, mientras que Gauss-Seidel logró la misma precisión en solo 5 iteraciones, el doble de rápido.</div>
+
+      <h3>Criterio de parada</h3>
+      <p>El algoritmo no itera para siempre: se detiene cuando la diferencia entre la iteración actual y la anterior es menor a una tolerancia TOL dada, medida con la norma infinito sobre todo el vector:</p>
+      <div class="math-box">
+        <span class="frac"><span class="num">‖x<sup>(k)</sup> − x<sup>(k−1)</sup>‖<sub>∞</sub></span><span class="den">‖x<sup>(k)</sup>‖<sub>∞</sub></span></span>
+        <span>&nbsp;&lt; TOL</span>
+      </div>
+      <p>También se puede exigir, variable por variable, que el error absoluto sea menor a una tolerancia ε chica (por ejemplo, 10⁻⁴):</p>
+      <div class="math-box"><span>|x<sub>i</sub><sup>(k)</sup> − x<sub>i</sub><sup>(k−1)</sup>|</span><span>&nbsp;&lt; ε</span></div>
+      <p>o su versión relativa:</p>
+      <div class="math-box">
+        <span class="frac"><span class="num">|x<sub>i</sub><sup>(k)</sup> − x<sub>i</sub><sup>(k−1)</sup>|</span><span class="den">|x<sub>i</sub><sup>(k)</sup>|</span></span>
+        <span>&nbsp;&lt; ε</span>
+      </div>
+      <p>En los ejercicios de esta exposición se usó un número fijo de 3 iteraciones porque así lo pedía cada enunciado, pero en una implementación real este es el criterio que se usaría para frenar automáticamente, y suele alcanzarse en menos pasos que con Jacobi.</p>
+    </div>
+    <footer class="pagefoot"><span>Gauss-Seidel · Teoría</span><span>Sistemas de Ecuaciones Lineales</span></footer>
+  </section>
+
+  <!-- ============ GAUSS-SEIDEL: PRÁCTICA ============ -->
+  <section class="view" id="view-gauss-seidel-practica" data-accent="gs">
+    <div class="topbar">
+      <button class="back" onclick="navigate('gauss-seidel')">← Gauss-Seidel</button>
+      <span class="crumb">Gauss-Seidel / Práctica · <button class="crumb-link" onclick="navigate('gauss-seidel/teoria')">Ir a teoría →</button></span>
+      <button class="back" onclick="navigate('home')">Inicio</button>
+    </div>
+    <div class="content">
+      <p class="kicker" style="color:var(--gs)">Práctica</p>
+      <h2>Resolución paso a paso</h2>
+      <h3 style="margin-top:0;">Ejemplo 1</h3>
+      <p><b style="color:var(--text)">Problema:</b> Dado el mismo sistema de ecuaciones lineales, realizar 3 iteraciones por el método de Gauss-Seidel partiendo del vector inicial <span class="vec">x</span><sup>(0)</sup> = {4/3, −1/5, 4/3}.</p>
+      <div class="formula-box">3x +  y +  z =  4
+2x + 5y +  z = -1
+-x +  y + 3z =  4</div>
+
+      <h3>Paso 1: Armar la Matriz Iterativa</h3>
+      <p>Despejamos cada incógnita de su propia ecuación, la que corresponde a la diagonal principal. La clave de Gauss-Seidel está en los índices: para calcular y<sup>(k)</sup> usamos la x<sup>(k)</sup> que acabamos de averiguar, y para z<sup>(k)</sup> usamos tanto la x<sup>(k)</sup> como la y<sup>(k)</sup> recién calculadas:</p>
+      <div class="math-box math-stack">
+        <div class="math-row"><span>x<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">3</span></span><span>[ 4 − ( y<sup>(k−1)</sup> + z<sup>(k−1)</sup> ) ]</span></div>
+        <div class="math-row"><span>y<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">5</span></span><span>[ −1 − ( 2x<sup>(k)</sup> + z<sup>(k−1)</sup> ) ]</span></div>
+        <div class="math-row"><span>z<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">3</span></span><span>[ 4 − ( −x<sup>(k)</sup> + y<sup>(k)</sup> ) ]</span></div>
+      </div>
+
+      <h3>Paso 2: Ejecutar las 3 Iteraciones</h3>
+
+      <div class="step">
+        <div class="step-label">Iteración 1 (k = 1)</div>
+        <p>Para calcular x, usamos y y z del vector inicial. Pero atención: para calcular y, ya usamos el nuevo valor de x (0.955); y para z, usamos los nuevos valores de x (0.955) e y (−0.8488).</p>
+        <ul>
+          <li>x<sup>(1)</sup> = ⅓ [4 − (−1/5 + 4/3)] = 0.955</li>
+          <li>y<sup>(1)</sup> = ⅕ [−1 − (2(0.955) + 4/3)] = −0.8488</li>
+          <li>z<sup>(1)</sup> = ⅓ [4 − (−0.955 + (−0.8488))] = 1.9347</li>
+        </ul>
+        <p>Vector resultante 1: <span class="result-vec"><span class="vec">x</span><sup>(1)</sup> = {0.955, −0.8488, 1.9347}</span></p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Iteración 2 (k = 2)</div>
+        <p>Repetimos la lógica secuencial, arrastrando siempre el dato más actualizado que tengamos.</p>
+        <ul>
+          <li>x<sup>(2)</sup> = ⅓ [4 − (−0.8488 + 1.9347)] = 0.9713</li>
+          <li>y<sup>(2)</sup> = ⅕ [−1 − (2(0.9713) + 1.9347)] = −0.9754</li>
+          <li>z<sup>(2)</sup> = ⅓ [4 − (−0.9713 + (−0.9754))] = 1.9822</li>
+        </ul>
+        <p>Vector resultante 2: <span class="result-vec"><span class="vec">x</span><sup>(2)</sup> = {0.9713, −0.9754, 1.9822}</span></p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Iteración 3 (k = 3)</div>
+        <p>Última iteración pedida en el ejercicio.</p>
+        <ul>
+          <li>x<sup>(3)</sup> = ⅓ [4 − (−0.9754 + 1.9822)] = 0.9977</li>
+          <li>y<sup>(3)</sup> = ⅕ [−1 − (2(0.9977) + 1.9822)] = −0.9955</li>
+          <li>z<sup>(3)</sup> = ⅓ [4 − (−0.9977 + (−0.9955))] = 1.9977</li>
+        </ul>
+        <p>Vector resultante 3: <span class="result-vec"><span class="vec">x</span><sup>(3)</sup> = {0.9977, −0.9955, 1.9977}</span></p>
+      </div>
+
+      <h3>Conclusión del Ejercicio</h3>
+      <p>La solución exacta del problema es <span class="vec">x</span> = {1, −1, 2}. Como se puede observar, en solo tres iteraciones con Gauss-Seidel llegamos a un resultado sumamente preciso, demostrando en la práctica cómo la actualización secuencial de variables acelera la convergencia en comparación con el método de Jacobi.</p>
+
+      <h3 style="margin-top:56px; padding-top:28px; border-top:1px solid var(--border);">Ejemplo 2</h3>
+      <p><b style="color:var(--text)">Problema:</b> Resolver el siguiente sistema lineal por el método de Gauss-Seidel, realizando 3 iteraciones, partiendo del vector inicial <span class="vec">x</span><sup>(0)</sup> = {0, 0, 0}.</p>
+      <div class="formula-box">5x +  y +  z = 5
+3x + 4y +  z = 6
+3x + 3y + 6z = 0</div>
+
+      <h4 style="margin:26px 0 8px; font-size:16px;">Paso 1: Armar la Matriz Iterativa</h4>
+      <p>Verificamos primero que la matriz sea diagonalmente dominante: |5| ≥ |1|+|1|, |4| ≥ |3|+|1|, |6| ≥ |3|+|3|, se cumple (con igualdad en las filas 2 y 3) en las tres filas, así que el método converge. Despejamos cada incógnita de la diagonal, usando ya los índices "k" y "k-1" de Gauss-Seidel:</p>
+      <div class="math-box math-stack">
+        <div class="math-row"><span>x<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">5</span></span><span>[ 5 − ( y<sup>(k−1)</sup> + z<sup>(k−1)</sup> ) ]</span></div>
+        <div class="math-row"><span>y<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">4</span></span><span>[ 6 − ( 3x<sup>(k)</sup> + z<sup>(k−1)</sup> ) ]</span></div>
+        <div class="math-row"><span>z<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">6</span></span><span>[ 0 − ( 3x<sup>(k)</sup> + 3y<sup>(k)</sup> ) ]</span></div>
+      </div>
+
+      <h4 style="margin:26px 0 8px; font-size:16px;">Paso 2: Ejecutar las 3 Iteraciones</h4>
+
+      <div class="step">
+        <div class="step-label">Iteración 1 (k = 1)</div>
+        <p>Reemplazamos con el vector inicial (x = 0, y = 0, z = 0). Para y ya usamos la x nueva (1), y para z usamos la x y la y nuevas (1 y 0.75).</p>
+        <ul>
+          <li>x<sup>(1)</sup> = ⅕ [5 − (0 + 0)] = 1</li>
+          <li>y<sup>(1)</sup> = ¼ [6 − (3(1) + 0)] = 0.75</li>
+          <li>z<sup>(1)</sup> = ⅙ [0 − (3(1) + 3(0.75))] = −0.875</li>
+        </ul>
+        <p>Vector resultante 1: <span class="result-vec"><span class="vec">x</span><sup>(1)</sup> = {1, 0.75, −0.875}</span></p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Iteración 2 (k = 2)</div>
+        <p>Usamos los valores de la iteración 1: x = 1, y = 0.75, z = −0.875.</p>
+        <ul>
+          <li>x<sup>(2)</sup> = ⅕ [5 − (0.75 + (−0.875))] = 1.025</li>
+          <li>y<sup>(2)</sup> = ¼ [6 − (3(1.025) + (−0.875))] = 0.95</li>
+          <li>z<sup>(2)</sup> = ⅙ [0 − (3(1.025) + 3(0.95))] = −0.9875</li>
+        </ul>
+        <p>Vector resultante 2: <span class="result-vec"><span class="vec">x</span><sup>(2)</sup> = {1.025, 0.95, −0.9875}</span></p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Iteración 3 (k = 3)</div>
+        <p>Usamos los valores de la iteración 2: x = 1.025, y = 0.95, z = −0.9875.</p>
+        <ul>
+          <li>x<sup>(3)</sup> = ⅕ [5 − (0.95 + (−0.9875))] = 1.0075</li>
+          <li>y<sup>(3)</sup> = ¼ [6 − (3(1.0075) + (−0.9875))] = 0.99125</li>
+          <li>z<sup>(3)</sup> = ⅙ [0 − (3(1.0075) + 3(0.99125))] = −0.999375</li>
+        </ul>
+        <p>Vector resultante 3: <span class="result-vec"><span class="vec">x</span><sup>(3)</sup> = {1.0075, 0.99125, −0.999375}</span></p>
+      </div>
+
+      <h4 style="margin:26px 0 8px; font-size:16px;">Conclusión del Ejercicio</h4>
+      <p>La solución exacta de este sistema es <span class="vec">x</span> = {1, 1, −1}. Con solo tres iteraciones, Gauss-Seidel ya está prácticamente sobre la solución exacta (el enunciado original pedía parar con tolerancia ≤ 5×10⁻², pero acá se muestran las 3 iteraciones completas).</p>
+
+      <h3 style="margin-top:56px; padding-top:28px; border-top:1px solid var(--border);">Ejemplo 3</h3>
+      <p><b style="color:var(--text)">Problema:</b> Resolver el siguiente sistema de ecuaciones lineales por el método de Gauss-Seidel, realizando 3 iteraciones, partiendo del vector inicial <span class="vec">x</span><sup>(0)</sup> = {0.7, −1.6, 0.6}. Es el mismo sistema del Ejemplo 1 de Jacobi, resuelto acá con Gauss-Seidel para comparar.</p>
+      <div class="formula-box">10x + 2y +  z =  7
+ x + 5y +  z = -8
+2x + 3y + 10z =  6</div>
+
+      <h4 style="margin:26px 0 8px; font-size:16px;">Paso 1: Armar la Matriz Iterativa</h4>
+      <p>Verificamos primero que la matriz sea diagonalmente dominante. Despejamos cada incógnita de la diagonal, con los índices propios de Gauss-Seidel: y usa la x recién calculada, y z usa la x y la y recién calculadas:</p>
+      <div class="math-box math-stack">
+        <div class="math-row"><span>x<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">10</span></span><span>[ 7 − ( 2y<sup>(k−1)</sup> + z<sup>(k−1)</sup> ) ]</span></div>
+        <div class="math-row"><span>y<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">5</span></span><span>[ −8 − ( x<sup>(k)</sup> + z<sup>(k−1)</sup> ) ]</span></div>
+        <div class="math-row"><span>z<sup>(k)</sup> =</span><span class="frac"><span class="num">1</span><span class="den">10</span></span><span>[ 6 − ( 2x<sup>(k)</sup> + 3y<sup>(k)</sup> ) ]</span></div>
+      </div>
+
+      <h4 style="margin:26px 0 8px; font-size:16px;">Paso 2: Ejecutar las 3 Iteraciones</h4>
+
+      <div class="step">
+        <div class="step-label">Iteración 1 (k = 1)</div>
+        <p>Reemplazamos con el vector inicial (x = 0.7, y = −1.6, z = 0.6). Para y ya usamos la x nueva (0.96), y para z usamos la x y la y nuevas.</p>
+        <ul>
+          <li>x<sup>(1)</sup> = ⅒ [7 − (2(−1.6) + 0.6)] = 0.96</li>
+          <li>y<sup>(1)</sup> = ⅕ [−8 − (0.96 + 0.6)] = −1.912</li>
+          <li>z<sup>(1)</sup> = ⅒ [6 − (2(0.96) + 3(−1.912))] = 0.9816</li>
+        </ul>
+        <p>Vector resultante 1: <span class="result-vec"><span class="vec">x</span><sup>(1)</sup> = {0.96, −1.912, 0.9816}</span></p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Iteración 2 (k = 2)</div>
+        <p>Usamos los valores de la iteración 1: x = 0.96, y = −1.912, z = 0.9816.</p>
+        <ul>
+          <li>x<sup>(2)</sup> = ⅒ [7 − (2(−1.912) + 0.9816)] = 0.98424</li>
+          <li>y<sup>(2)</sup> = ⅕ [−8 − (0.98424 + 0.9816)] = −1.993168</li>
+          <li>z<sup>(2)</sup> = ⅒ [6 − (2(0.98424) + 3(−1.993168))] = 1.0011024</li>
+        </ul>
+        <p>Vector resultante 2: <span class="result-vec"><span class="vec">x</span><sup>(2)</sup> = {0.98424, −1.993168, 1.0011024}</span></p>
+      </div>
+
+      <div class="step">
+        <div class="step-label">Iteración 3 (k = 3)</div>
+        <p>Usamos los valores de la iteración 2: x = 0.98424, y = −1.993168, z = 1.0011024.</p>
+        <ul>
+          <li>x<sup>(3)</sup> = ⅒ [7 − (2(−1.993168) + 1.0011024)] = 0.9985234</li>
+          <li>y<sup>(3)</sup> = ⅕ [−8 − (0.9985234 + 1.0011024)] = −1.9999252</li>
+          <li>z<sup>(3)</sup> = ⅒ [6 − (2(0.9985234) + 3(−1.9999252))] = 1.0002729</li>
+        </ul>
+        <p>Vector resultante 3: <span class="result-vec"><span class="vec">x</span><sup>(3)</sup> = {0.9985, −1.9999, 1.0003}</span></p>
+      </div>
+
+      <h4 style="margin:26px 0 8px; font-size:16px;">Conclusión del Ejercicio</h4>
+      <p>La solución exacta de este sistema es <span class="vec">x</span> = {1, −2, 1}. Acá tanto Jacobi como Gauss-Seidel llegan muy cerca en 3 iteraciones, porque la matriz es fuertemente diagonalmente dominante en las tres filas (a diferencia del Ejemplo 3 de Jacobi, donde la dominancia era más débil y se notaba la diferencia entre métodos).</p>
+    </div>
+    <footer class="pagefoot"><span>Gauss-Seidel · Práctica</span><span>3 iteraciones</span></footer>
+  </section>
+
+  <!-- ============ INTRODUCCIÓN ============ -->
+  <section class="view" id="view-introduccion" data-accent="intro">
+    <div class="topbar">
+      <button class="back" onclick="navigate('home')">← Portada</button>
+      <span class="crumb">Introducción</span>
+    </div>
+    <div class="content">
+      <p class="kicker" style="color:var(--intro)">Base teórica</p>
+      <h2>¿Qué son los métodos iterativos?</h2>
+      <p>Son técnicas numéricas para resolver sistemas de ecuaciones lineales de la forma:</p>
+      <div class="formula-box">A · x = b</div>
+      <ul>
+        <li><b style="color:var(--text)">A</b> es la matriz de coeficientes, de tamaño N×N.</li>
+        <li><b style="color:var(--text)">x</b> es el vector de incógnitas que buscamos (las variables del sistema).</li>
+        <li><b style="color:var(--text)">b</b> es el vector de términos independientes (el resultado de cada ecuación).</li>
+      </ul>
+      <p>En vez de resolver el sistema de una sola vez como hacen los métodos directos (por ejemplo, eliminación gaussiana), los métodos iterativos parten de una aproximación inicial y la van refinando iteración a iteración hasta acercarse a la solución real. Jacobi y Gauss-Seidel son los dos métodos iterativos que vamos a desarrollar en esta exposición.</p>
+
+      <h3>Ventajas sobre los métodos directos</h3>
+      <ul>
+        <li><b style="color:var(--text)">Eficiencia en memoria:</b> para sistemas grandes con muchos ceros (matrices dispersas), son más eficientes en almacenamiento.</li>
+        <li><b style="color:var(--text)">Menor costo computacional:</b> en ciertos casos requieren menos operaciones que resolver el sistema de forma directa.</li>
+        <li><b style="color:var(--text)">Aplicabilidad:</b> son especialmente útiles en análisis de circuitos eléctricos, solución numérica de problemas de valor en la frontera y ecuaciones diferenciales parciales.</li>
+        <li><b style="color:var(--text)">Se pueden interrumpir:</b> en los métodos directos hay que completar todo el cálculo para tener una respuesta. En los métodos iterativos, en cambio, se puede suspender el proceso en cualquier iteración y ya se cuenta con una aproximación válida a la solución, algo imposible de lograr con eliminación gaussiana a mitad de camino.</li>
+      </ul>
+
+      <h3>Ejemplo real: distribución de calor en una placa</h3>
+      <p>Un caso clásico donde se usan estos métodos es calcular cómo se distribuye la temperatura en una placa metálica en equilibrio, conociendo solo la temperatura en los bordes. La física dice que, en el equilibrio, la temperatura de cada punto interior es el promedio de sus cuatro vecinos (arriba, abajo, izquierda, derecha). Eso da una ecuación lineal por cada punto interior de la placa.</p>
+      <div class="flow-wrap">
+        <svg viewBox="0 0 680 460" width="100%" height="380" role="img" aria-label="Un punto interior desconocido en una placa, rodeado de cuatro bordes con temperatura fija">
+          <line x1="340" y1="132" x2="340" y2="218" stroke="var(--text-dim)" stroke-width="1.4" marker-end="url(#arrPlaca)"/>
+          <line x1="340" y1="348" x2="340" y2="262" stroke="var(--text-dim)" stroke-width="1.4" marker-end="url(#arrPlaca)"/>
+          <line x1="182" y1="240" x2="318" y2="240" stroke="var(--text-dim)" stroke-width="1.4" marker-end="url(#arrPlaca)"/>
+          <line x1="498" y1="240" x2="362" y2="240" stroke="var(--text-dim)" stroke-width="1.4" marker-end="url(#arrPlaca)"/>
+          <defs><marker id="arrPlaca" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="var(--text-dim)"/></marker></defs>
+          <g font-size="14">
+            <circle cx="340" cy="110" r="22" fill="var(--surface)" stroke="var(--border)"/><text x="340" y="115" text-anchor="middle" fill="var(--text)">100°</text>
+            <circle cx="340" cy="370" r="22" fill="var(--surface)" stroke="var(--border)"/><text x="340" y="375" text-anchor="middle" fill="var(--text)">0°</text>
+            <circle cx="160" cy="240" r="22" fill="var(--surface)" stroke="var(--border)"/><text x="160" y="245" text-anchor="middle" fill="var(--text)">50°</text>
+            <circle cx="520" cy="240" r="22" fill="var(--surface)" stroke="var(--border)"/><text x="520" y="245" text-anchor="middle" fill="var(--text)">75°</text>
+            <circle cx="340" cy="240" r="22" fill="var(--surface-2)" stroke="var(--result)" stroke-width="2"/><text x="340" y="245" text-anchor="middle" fill="var(--result)">T</text>
+          </g>
+          <text x="372" y="116" font-size="12.5" fill="var(--text-dim)">Norte, fijo</text>
+          <text x="372" y="376" font-size="12.5" fill="var(--text-dim)">Sur, fijo</text>
+          <text x="160" y="200" font-size="12.5" fill="var(--text-dim)" text-anchor="middle">Oeste, fijo</text>
+          <text x="520" y="200" font-size="12.5" fill="var(--text-dim)" text-anchor="middle">Este, fijo</text>
+          <text x="372" y="262" font-size="12.5" fill="var(--result)">Incógnita</text>
+          <text x="340" y="430" font-size="15" fill="var(--text)" text-anchor="middle">T = (Norte + Sur + Oeste + Este) / 4</text>
+        </svg>
+      </div>
+      <p>Con una placa grande (una grilla de 50×50 o 100×100 puntos) esto se convierte en miles de ecuaciones lineales, casi todas con ceros: cada punto solo depende de sus 4 vecinos, no de los demás. Ese sistema es enorme y disperso, justo el escenario donde un método directo se vuelve carísimo y donde Jacobi o Gauss-Seidel son la opción práctica.</p>
+      <p>Esta imagen muestra la misma idea a distinta resolución de grilla: cuanto más fina es la malla (más celdas, a la izquierda), más preciso es el mapa de temperaturas, pero también hay muchas más ecuaciones para resolver. Con mallas más gruesas (a la derecha) se resuelve más rápido, pero con menos detalle. Ese equilibrio entre precisión y costo computacional es exactamente donde entran los métodos iterativos.</p>
+      <img src="data:image/jpeg;base64,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" alt="Comparación de mallas de distinta resolución mostrando la distribución de temperatura de una placa, de más fina a más gruesa" style="width:100%; max-width:600px; display:block; margin:16px auto; border-radius:8px; border:1px solid var(--border);">
+      <p>Otros usos reales de este mismo tipo de sistema: análisis de circuitos eléctricos (aplicando las leyes de Kirchhoff a una red de resistencias, cada nodo depende solo de los nodos conectados a él), simulaciones de elementos finitos en ingeniería estructural, y algoritmos de procesamiento de imágenes donde cada píxel se corrige en función de sus vecinos.</p>
+
+      <h3>¿Cuándo se utilizan?</h3>
+      <ul>
+        <li>Para sistemas grandes, de alta dimensión.</li>
+        <li>Cuando el tiempo requerido para lograr precisión suficiente con métodos directos excede lo necesario con métodos iterativos.</li>
+        <li>Para sistemas con matriz dispersa (muchos ceros).</li>
+      </ul>
+
+      <div class="subnav" style="margin-top:40px;">
+        <button class="subnav-btn" onclick="navigate('jacobi')" style="border-color:var(--jacobi-dim);">
+          <span class="num" style="color:var(--jacobi)">Método 01</span>
+          <span class="label">Ir a Jacobi</span>
+        </button>
+        <button class="subnav-btn" onclick="navigate('gauss-seidel')" style="border-color:var(--gs-dim);">
+          <span class="num" style="color:var(--gs)">Método 02</span>
+          <span class="label">Ir a Gauss-Seidel</span>
+        </button>
+        <button class="subnav-btn" onclick="navigate('calculadora')" style="border-color:var(--calc-dim);">
+          <span class="num" style="color:var(--calc)">Herramienta</span>
+          <span class="label">Ir a la Calculadora</span>
+        </button>
+      </div>
+    </div>
+    <footer class="pagefoot"><span>Introducción</span><span>Métodos Iterativos</span></footer>
+  </section>
+
+  <!-- ============ FUENTES ============ -->
+  <section class="view" id="view-fuentes" data-accent="intro">
+    <div class="topbar">
+      <button class="back" onclick="navigate('home')">← Portada</button>
+      <span class="crumb">Fuentes</span>
+    </div>
+    <div class="content">
+      <p class="kicker" style="color:var(--intro)">Referencias</p>
+      <h2>Fuentes consultadas</h2>
+      <ul>
+        <li>Burden, R. &amp; Faires, J., <i>Numerical Analysis</i>, 10.ª edición, págs. 345 a 353.</li>
+        <li>Amiconi, Diego Federico (Ing.), "Ejemplos resueltos: Jacobi y Gauss Seidel", Cátedras de Modelos Numéricos, Análisis Numérico y Cálculo Avanzado, U.T.N. Facultad Regional La Plata.</li>
+        <li>"03 - Teoría de Sistemas de Ecuaciones Lineales", apunte de la cátedra de Análisis Numérico, U.T.N. Facultad Regional La Plata.</li>
+      </ul>
+    </div>
+    <footer class="pagefoot"><span>Fuentes</span><span>Referencias consultadas</span></footer>
+  </section>
+
+  <!-- ============ CALCULADORA ============ -->
+  <section class="view" id="view-calculadora" data-accent="calc">
+    <div class="topbar">
+      <button class="back" onclick="navigate('introduccion')">← Introducción</button>
+      <span class="crumb">Calculadora</span>
+      <button class="back" onclick="navigate('home')">Inicio</button>
+    </div>
+    <div class="content">
+      <p class="kicker" style="color:var(--calc)">Herramienta</p>
+      <h2>Calculadora de Jacobi y Gauss-Seidel</h2>
+      <p>Cargá tu propio sistema Ax = b (de 2×2 a 8×8), elegí el método y la cantidad de iteraciones o una tolerancia, y mirá el resultado de cada paso. Por defecto está cargado el sistema que usamos en los ejemplos de esta página.</p>
+
+      <div class="calc-controls">
+        <div class="calc-row">
+          <label for="calc-size">Tamaño del sistema (n×n):</label>
+          <select id="calc-size" class="calc-select" onchange="calcBuildMatrix()">
+            <option value="2">2×2</option>
+            <option value="3" selected>3×3</option>
+            <option value="4">4×4</option>
+            <option value="5">5×5</option>
+            <option value="6">6×6</option>
+            <option value="7">7×7</option>
+            <option value="8">8×8</option>
+          </select>
+        </div>
+
+        <div class="calc-scroll">
+          <table class="calc-matrix-table" id="calc-matrix-table"></table>
+        </div>
+
+        <div class="calc-row">
+          <span style="color:var(--text); font-size:14px;">Método:</span>
+          <div class="calc-radio-group">
+            <label><input type="radio" name="calc-method" value="jacobi" checked> Jacobi</label>
+            <label><input type="radio" name="calc-method" value="gs"> Gauss-Seidel</label>
+          </div>
+        </div>
+
+        <div class="calc-row">
+          <span style="color:var(--text); font-size:14px;">Criterio de parada:</span>
+          <div class="calc-radio-group">
+            <label><input type="radio" name="calc-stopmode" value="iters" checked onchange="calcUpdateStopMode()"> Solo iteraciones</label>
+            <label><input type="radio" name="calc-stopmode" value="tol" onchange="calcUpdateStopMode()"> Solo tolerancia</label>
+            <label><input type="radio" name="calc-stopmode" value="both" onchange="calcUpdateStopMode()"> Ambas</label>
+          </div>
+        </div>
+
+        <div class="calc-row" id="calc-iters-row">
+          <label for="calc-iters">Iteraciones máximas (máx. 10):</label>
+          <input type="number" id="calc-iters" class="calc-num" min="1" max="10" value="5">
+        </div>
+        <div class="calc-row" id="calc-tol-row">
+          <label for="calc-tol">Tolerancia:</label>
+          <input type="number" id="calc-tol" class="calc-num" min="0" step="any" placeholder="ej: 0.0001" disabled>
+        </div>
+
+        <div class="calc-row">
+          <button class="calc-btn" onclick="calcSolve()">Calcular</button>
+        </div>
+      </div>
+
+      <div id="calc-output"></div>
+    </div>
+    <footer class="pagefoot"><span>Calculadora</span><span>Jacobi y Gauss-Seidel</span></footer>
+  </section>
+
+</div>
+
+<script>
+  const routes = ['home','introduccion','jacobi','jacobi/teoria','jacobi/practica','gauss-seidel','gauss-seidel/teoria','gauss-seidel/practica','fuentes','calculadora'];
+  function idFor(route){ return 'view-' + route.replace(/\//g,'-'); }
+  function navigate(route){
+    if(!routes.includes(route)) route = 'home';
+    location.hash = '#/' + route;
+  }
+  function render(){
+    let route = (location.hash || '#/home').replace('#/','');
+    if(!routes.includes(route)) route = 'home';
+    document.querySelectorAll('section.view').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById(idFor(route));
+    if(el){ el.classList.add('active'); window.scrollTo({top:0, behavior:'instant'}); }
+  }
+  window.addEventListener('hashchange', render);
+  render();
+
+  function calcBuildMatrix(){
+    const n = parseInt(document.getElementById('calc-size').value, 10);
+    const table = document.getElementById('calc-matrix-table');
+    const defaultA = [[3,1,1],[2,5,1],[-1,1,3]];
+    const defaultB = [4,-1,4];
+    let html = '<thead><tr><th></th>';
+    for(let j=0;j<n;j++){ html += '<th>x<sub>'+(j+1)+'</sub></th>'; }
+    html += '<th></th><th>b</th></tr></thead><tbody>';
+    for(let i=0;i<n;i++){
+      html += '<tr><td class="calc-eq">Ec. '+(i+1)+'</td>';
+      for(let j=0;j<n;j++){
+        const val = (n===3 && defaultA[i]) ? defaultA[i][j] : (i===j?1:0);
+        html += '<td><input type="number" step="any" class="calc-cell" id="calc-a-'+i+'-'+j+'" value="'+val+'"></td>';
+      }
+      html += '<td class="calc-eq">=</td>';
+      const bval = (n===3) ? defaultB[i] : 0;
+      html += '<td><input type="number" step="any" class="calc-cell" id="calc-b-'+i+'" value="'+bval+'"></td></tr>';
+    }
+    html += '</tbody>';
+    table.innerHTML = html;
+    document.getElementById('calc-output').innerHTML = '';
+  }
+
+  function calcGetValues(n){
+    const A = []; const b = [];
+    for(let i=0;i<n;i++){
+      const row = [];
+      for(let j=0;j<n;j++){
+        const v = parseFloat(document.getElementById('calc-a-'+i+'-'+j).value);
+        if(isNaN(v)) return null;
+        row.push(v);
+      }
+      A.push(row);
+      const bv = parseFloat(document.getElementById('calc-b-'+i).value);
+      if(isNaN(bv)) return null;
+      b.push(bv);
+    }
+    return {A, b};
+  }
+
+  function calcCheckDominance(A, n){
+    let allDominant = true;
+    for(let i=0;i<n;i++){
+      let sum = 0;
+      for(let j=0;j<n;j++){ if(j!==i) sum += Math.abs(A[i][j]); }
+      if(Math.abs(A[i][i]) < sum) allDominant = false;
+    }
+    return allDominant;
+  }
+
+  function calcRunIterations(A, b, n, method, maxIter, tol){
+    for(let i=0;i<n;i++){
+      if(A[i][i] === 0) return {error: 'El elemento a<sub>'+(i+1)+(i+1)+'</sub> de la diagonal es cero, no se puede dividir por él. Reordená las filas.'};
+    }
+    let xOld = new Array(n).fill(0);
+    const steps = [xOld.slice()];
+    let stoppedAt = null;
+    let lastErr = null;
+    for(let k=1;k<=maxIter;k++){
+      let xNew;
+      if(method === 'jacobi'){
+        xNew = new Array(n).fill(0);
+        for(let i=0;i<n;i++){
+          let sum = b[i];
+          for(let j=0;j<n;j++){ if(j!==i) sum -= A[i][j]*xOld[j]; }
+          xNew[i] = sum / A[i][i];
+        }
+      } else {
+        xNew = xOld.slice();
+        for(let i=0;i<n;i++){
+          let sum = b[i];
+          for(let j=0;j<n;j++){ if(j!==i) sum -= A[i][j]*xNew[j]; }
+          xNew[i] = sum / A[i][i];
+        }
+      }
+      steps.push(xNew.slice());
+      if(tol !== null && !isNaN(tol) && tol > 0){
+        let maxDiff = 0, maxVal = 0;
+        for(let i=0;i<n;i++){
+          maxDiff = Math.max(maxDiff, Math.abs(xNew[i]-xOld[i]));
+          maxVal = Math.max(maxVal, Math.abs(xNew[i]));
+        }
+        const err = maxVal === 0 ? maxDiff : maxDiff/maxVal;
+        lastErr = err;
+        xOld = xNew;
+        if(err < tol){ stoppedAt = k; break; }
+      } else {
+        xOld = xNew;
+      }
+    }
+    return {steps, stoppedAt, lastErr};
+  }
+
+  function calcUpdateStopMode(){
+    const mode = document.querySelector('input[name="calc-stopmode"]:checked').value;
+    const itersRow = document.getElementById('calc-iters-row');
+    const tolRow = document.getElementById('calc-tol-row');
+    const itersInput = document.getElementById('calc-iters');
+    const tolInput = document.getElementById('calc-tol');
+    if(mode === 'iters'){
+      itersInput.disabled = false; itersRow.style.opacity = '1';
+      tolInput.disabled = true; tolRow.style.opacity = '.45';
+    } else if(mode === 'tol'){
+      itersInput.disabled = true; itersRow.style.opacity = '.45';
+      tolInput.disabled = false; tolRow.style.opacity = '1';
+    } else {
+      itersInput.disabled = false; itersRow.style.opacity = '1';
+      tolInput.disabled = false; tolRow.style.opacity = '1';
+    }
+  }
+
+  function calcSolve(){
+    const n = parseInt(document.getElementById('calc-size').value, 10);
+    const method = document.querySelector('input[name="calc-method"]:checked').value;
+    const stopMode = document.querySelector('input[name="calc-stopmode"]:checked').value;
+    const out = document.getElementById('calc-output');
+
+    let maxIter, tol;
+    if(stopMode === 'iters'){
+      maxIter = parseInt(document.getElementById('calc-iters').value, 10);
+      if(isNaN(maxIter) || maxIter < 1) maxIter = 1;
+      if(maxIter > 10) maxIter = 10;
+      tol = null;
+    } else if(stopMode === 'tol'){
+      maxIter = 10;
+      const tolRaw = document.getElementById('calc-tol').value;
+      const tolVal = parseFloat(tolRaw);
+      if(tolRaw === '' || isNaN(tolVal) || tolVal <= 0){
+        out.innerHTML = '<div class="calc-error">Ingresá un valor de tolerancia mayor a 0.</div>';
+        return;
+      }
+      tol = tolVal;
+    } else {
+      maxIter = parseInt(document.getElementById('calc-iters').value, 10);
+      if(isNaN(maxIter) || maxIter < 1) maxIter = 1;
+      if(maxIter > 10) maxIter = 10;
+      const tolRaw = document.getElementById('calc-tol').value;
+      const tolVal = parseFloat(tolRaw);
+      if(tolRaw === '' || isNaN(tolVal) || tolVal <= 0){
+        out.innerHTML = '<div class="calc-error">Ingresá un valor de tolerancia mayor a 0, o elegí "Solo iteraciones".</div>';
+        return;
+      }
+      tol = tolVal;
+    }
+
+    const vals = calcGetValues(n);
+    if(!vals){
+      out.innerHTML = '<div class="calc-error">Completá todos los valores de la matriz y el vector b antes de calcular.</div>';
+      return;
+    }
+    const dominant = calcCheckDominance(vals.A, n);
+    const result = calcRunIterations(vals.A, vals.b, n, method, maxIter, tol);
+    if(result.error){
+      out.innerHTML = '<div class="calc-error">'+result.error+'</div>';
+      return;
+    }
+
+    let html = '';
+    if(dominant){
+      html += '<div class="note"><b>Matriz diagonalmente dominante.</b> Hay garantía de convergencia.</div>';
+    } else {
+      html += '<div class="note"><b>Atención:</b> la matriz no es diagonalmente dominante. El método podría no converger; los resultados son orientativos.</div>';
+    }
+
+    html += '<div class="calc-scroll"><table class="iter-table"><thead><tr><th>k</th>';
+    for(let j=0;j<n;j++){ html += '<th>x<sub>'+(j+1)+'</sub></th>'; }
+    html += '</tr></thead><tbody>';
+    result.steps.forEach((step, k) => {
+      const isLast = k === result.steps.length-1;
+      html += '<tr><td>'+k+'</td>';
+      step.forEach(v => { html += '<td'+(isLast?' class="final"':'')+'>'+v.toFixed(5)+'</td>'; });
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+
+    const last = result.steps[result.steps.length-1];
+    html += '<p style="margin-top:16px;">Vector final: <span class="result-vec">{'+last.map(v=>v.toFixed(5)).join(', ')+'}</span></p>';
+    if(tol !== null && result.lastErr !== null){
+      html += '<p>Error relativo alcanzado: <span class="result-vec">'+result.lastErr.toExponential(4)+'</span> (pedido: &lt; '+tol+')</p>';
+    }
+    if(result.stoppedAt){
+      html += '<p>Se alcanzó la tolerancia pedida en la iteración '+result.stoppedAt+'.</p>';
+    } else if(tol !== null){
+      html += '<p>No se alcanzó la tolerancia pedida dentro del máximo de '+maxIter+' iteraciones.</p>';
+    }
+    out.innerHTML = html;
+  }
+
+  calcBuildMatrix();
+  calcUpdateStopMode();
+</script>
+</body>
+</html>
